@@ -16,14 +16,17 @@
 // All rights reserved.
 // Use of this source code is governed by a BSD-style .
 // license that can be found in the LICENSE file.
+
 package gocron
 
 import (
-	"errors"
 	"reflect"
 	"runtime"
 	"sort"
 	"time"
+	"github.com/google/uuid"
+	"encoding/hex"
+	"errors"
 )
 
 // Time location, default set by the time.Local (*time.Location)
@@ -38,6 +41,9 @@ func ChangeLoc(newLocation *time.Location) {
 const MAXJOBNUM = 10000
 
 type Job struct {
+
+	// the job unique id
+	id string
 
 	// pause interval * unit bettween runs
 	interval uint64
@@ -69,6 +75,7 @@ type Job struct {
 // Create a new job with the time interval.
 func NewJob(intervel uint64) *Job {
 	return &Job{
+		hex.EncodeToString(uuid.New().NodeID()),
 		intervel,
 		"", "", "",
 		time.Unix(0, 0),
@@ -88,7 +95,7 @@ func (j *Job) shouldRun() bool {
 func (j *Job) run() (result []reflect.Value, err error) {
 	f := reflect.ValueOf(j.funcs[j.jobFunc])
 	params := j.fparams[j.jobFunc]
-	if len(params) != f.Type().NumIn() {
+	if len(params) > 0 && len(params) != f.Type().NumIn() {
 		err = errors.New("The number of param is not adapted.")
 		return
 	}
@@ -433,11 +440,10 @@ func (s *Scheduler) RunAllwithDelay(d int) {
 	}
 }
 
-// Remove specific job j
-func (s *Scheduler) Remove(j interface{}) {
+func (s *Scheduler) Remove(jobId string) {
 	i := 0
 	for ; i < s.size; i++ {
-		if s.jobs[i].jobFunc == getFunctionName(j) {
+		if s.jobs[i].id == jobId {
 			break
 		}
 	}
